@@ -7,6 +7,8 @@
 #define BUFLEN 512  //Max length of buffer
 #define PORT 8888   //The port on which to listen for incoming data
 
+
+
 int main()
 {
 	SOCKET s;
@@ -63,15 +65,35 @@ int main()
 		}
 
 		//print details of the client/peer and the data received
-		printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
-		printf("Data: %s\n", buf);
+		printf("Received request: %s\n", buf);
 
-		//now reply the client with the same data
-		if (sendto(s, buf, recv_len, 0, (struct sockaddr*) &si_other, slen) == SOCKET_ERROR)
-		{
-			printf("sendto() failed with error code : %d", WSAGetLastError());
-			exit(EXIT_FAILURE);
+		HANDLE hFind;
+		WIN32_FIND_DATA FindData;
+
+		hFind = FindFirstFile(buf, &FindData);
+
+		if (hFind != INVALID_HANDLE_VALUE) {
+			if (sendto(s, FindData.cFileName, strlen(FindData.cFileName), 0, (struct sockaddr*) &si_other, slen) == SOCKET_ERROR)
+			{
+				printf("sendto() failed with error code : %d", WSAGetLastError());
+				exit(EXIT_FAILURE);
+			}
 		}
+
+		// Look for more
+
+		while (FindNextFile(hFind, &FindData))
+		{
+			if (sendto(s, FindData.cFileName, strlen(FindData.cFileName), 0, (struct sockaddr*) &si_other, slen) == SOCKET_ERROR)
+			{
+				printf("sendto() failed with error code : %d", WSAGetLastError());
+				exit(EXIT_FAILURE);
+			}
+		}
+
+		// Close the file handle
+
+		FindClose(hFind);
 	}
 
 	closesocket(s);
